@@ -190,13 +190,138 @@ def draw_polygon(screen, polygon, color):
     """Draw a filled polygon on the screen."""
     if polygon.is_empty:
         return
-    pygame.draw.polygon(screen, color, shapely_to_polygon(polygon))
+    coords = shapely_to_polygon(polygon)
+    if len(coords) < 3:
+        # Not a valid polygon for drawing
+        return
+    pygame.draw.polygon(screen, color, coords)
+
+
+
+
+def compute_visibility_polygon(robot_pos, edges):
+    """
+    Compute the visibility polygon for a robot by ray-casting to all obstacle vertices
+    and window edges.
+    """
+    rays = []
+    # Get all unique points (vertices of obstacles and window edges)
+    vertices = set()
+    for edge in edges:
+        vertices.add(edge[0])
+        vertices.add(edge[1])
+
+    # Cast rays to each vertex and slightly offset angles
+    for vertex in vertices:
+        angle = math.atan2(vertex[1] - robot_pos[1], vertex[0] - robot_pos[0])
+        rays.extend([angle - 0.0001, angle, angle + 0.0001])
+
+    # Sort rays by angle
+    rays = sorted(set(rays))
+
+    # Find intersections for each ray
+    points = []
+    for ray in rays:
+        end_x = robot_pos[0] + RAY_LENGTH * math.cos(ray)
+        end_y = robot_pos[1] + RAY_LENGTH * math.sin(ray)
+        closest_point = None
+        closest_dist = float('inf')
+
+        for edge in edges:
+            intersect_pt = line_intersection(robot_pos, (end_x, end_y), edge[0], edge[1])
+            if intersect_pt:
+                dist = math.dist(robot_pos, intersect_pt)
+                if dist < closest_dist:
+                    closest_dist = dist
+                    closest_point = intersect_pt
+
+        if closest_point:
+            points.append(closest_point)
+
+    # Sort points in counter-clockwise order
+    points = sorted(points, key=lambda p: math.atan2(p[1] - robot_pos[1], p[0] - robot_pos[0]))
+
+    # Return as a Shapely Polygon
+    return Polygon(points)
+
+# Helper to validate and fix geometry
+def validate_geometry(geometry):
+    if not geometry.is_valid:
+        geometry = geometry.buffer(0)  # Fix invalid geometry
+    return geometry
 
 # ---------------------- MAIN SIMULATION LOOP ----------------------
+from shapely.geometry import Point, Polygon, LineString
+from shapely.ops import split
+
+def split_by_voronoi(intersection, robot1_pos, robot2_pos):
+    """
+    Split the intersection polygon into two polygons based on the Voronoi boundary line
+    (the perpendicular bisector between the two robot positions).
+    """
+    if intersection.is_empty or intersection.geom_type not in ["Polygon", "MultiPolygon"]:
+        return Polygon(), Polygon()
+
+    x1, y1 = robot1_pos
+    x2, y2 = robot2_pos
+    mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+    dx, dy = (x2 - x1), (y2 - y1)
+
+    # The Voronoi boundary for two points is the perpendicular bisector.
+    # Normal vector to the line connecting the robots is (-dy, dx).
+    # Create a very long line through midpoint M along (-dy, dx).
+    line_length = max(WINDOW_WIDTH, WINDOW_HEIGHT) * 2
+    line_coords = [
+        (mx - dy * line_length, my + dx * line_length),
+        (mx + dy * line_length, my - dx * line_length)
+    ]
+    dividing_line = LineString(line_coords)
+
+    # Split the intersection with the dividing line
+    result = split(intersection, dividing_line)
+
+    # If split is successful, we should get two polygons
+    if len(result.geoms) == 2:
+        polyA, polyB = result.geoms[0], result.geoms[1]
+        cA = polyA.centroid
+        cB = polyB.centroid
+
+        distA_r1 = cA.distance(Point(robot1_pos))
+        distA_r2 = cA.distance(Point(robot2_pos))
+        distB_r1 = cB.distance(Point(robot1_pos))
+        distB_r2 = cB.distance(Point(robot2_pos))
+
+        # Assign each polygon to the closest robot
+        assignA = 'R1' if distA_r1 < distA_r2 else 'R2'
+        assignB = 'R1' if distB_r1 < distB_r2 else 'R2'
+
+        # If both ended up assigned to the same robot, handle gracefully:
+        if assignA == assignB:
+            # Decide assignment to minimize total distance
+            # Try A->R1, B->R2
+            cost_1 = distA_r1 + distB_r2
+            # Try A->R2, B->R1
+            cost_2 = distA_r2 + distB_r1
+            if cost_1 < cost_2:
+                # A->R1, B->R2
+                return polyA, polyB
+            else:
+                # A->R2, B->R1
+                return polyB, polyA
+        else:
+            # Different assignments; just return accordingly
+            if assignA == 'R1' and assignB == 'R2':
+                return polyA, polyB
+            else:
+                return polyB, polyA
+
+    # If we couldn't split into two polygons, return empty
+    return Polygon(), Polygon()
+
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-    pygame.display.set_caption("2D Two-Robot Ray Casting with Polygon Division")
+    pygame.display.set_caption("Infinite Visibility with Two Robots")
     clock = pygame.time.Clock()
 
     running = True
@@ -229,32 +354,43 @@ def main():
         if keys[pygame.K_d]:
             robot1_pos[0] += speed
 
-        # Define the FoV polygons as circles (simplified for this example)
-        fov_robot1 = Point(robot1_pos).buffer(150).simplify(1.0)  # Circle around Robot 1
-        fov_robot2 = Point(robot2_pos).buffer(150).simplify(1.0)  # Circle around Robot 2
+        # Compute visibility polygons
+        visibility_robot1 = compute_visibility_polygon(robot1_pos, all_edges)
+        visibility_robot2 = compute_visibility_polygon(robot2_pos, all_edges)
 
-        # Find intersection
-        intersection = fov_robot1.intersection(fov_robot2)
+        # Validate visibility polygons
+        visibility_robot1 = validate_geometry(visibility_robot1)
+        visibility_robot2 = validate_geometry(visibility_robot2)
 
-        # Handle non-polygon intersection types
-        if not isinstance(intersection, Polygon):
-            intersection = Polygon()
+        # Compute intersection
+        intersection = visibility_robot1.intersection(visibility_robot2)
+        intersection = validate_geometry(intersection)
 
-        # Divide intersection into two polygons based on proximity
-        divided1, divided2 = divide_intersection(intersection, robot1_pos, robot2_pos)
+        # If there is intersection (overlap), use the Voronoi line to split it
+        if not intersection.is_empty:
+            # Split intersection into two polygons
+            divided1, divided2 = split_by_voronoi(intersection, robot1_pos, robot2_pos)
+            divided1 = validate_geometry(divided1)
+            divided2 = validate_geometry(divided2)
 
-        # Subtract intersection from original polygons and add divided portions
-        fov_robot1 = fov_robot1.difference(intersection).union(divided1)
-        fov_robot2 = fov_robot2.difference(intersection).union(divided2)
+            # Update visibility for Robot 1
+            temp1 = visibility_robot1.difference(intersection)
+            temp1 = validate_geometry(temp1)
+            if not divided1.is_empty:
+                temp1 = temp1.union(divided1)
+                temp1 = validate_geometry(temp1)
+            visibility_robot1 = temp1
 
-        # Ensure the results are valid polygons
-        fov_robot1 = fov_robot1 if fov_robot1.geom_type in ["Polygon", "MultiPolygon"] else Polygon()
-        fov_robot2 = fov_robot2 if fov_robot2.geom_type in ["Polygon", "MultiPolygon"] else Polygon()
-
-
+            # Update visibility for Robot 2
+            temp2 = visibility_robot2.difference(intersection)
+            temp2 = validate_geometry(temp2)
+            if not divided2.is_empty:
+                temp2 = temp2.union(divided2)
+                temp2 = validate_geometry(temp2)
+            visibility_robot2 = temp2
 
         # Draw everything
-        screen.fill(BLACK)  # Clear screen
+        screen.fill(BLACK)
 
         # Draw obstacles
         for poly in obstacles:
@@ -263,10 +399,12 @@ def main():
         # Draw boundaries
         pygame.draw.rect(screen, WHITE, (0, 0, WINDOW_WIDTH, WINDOW_HEIGHT), 1)
 
-        # Draw polygons
-        draw_polygon(screen, fov_robot1, GREEN)
-        draw_polygon(screen, fov_robot2, BLUE)
-        draw_polygon(screen, intersection, RED)  # Optional: Show intersection in red
+        # Draw visibility polygons (only if they have enough points)
+        draw_polygon(screen, visibility_robot1, GREEN)
+        draw_polygon(screen, visibility_robot2, BLUE)
+
+        # Optionally draw intersection or any debugging info if needed
+        # draw_polygon(screen, intersection, RED)
 
         # Draw robots
         pygame.draw.circle(screen, WHITE, (int(robot1_pos[0]), int(robot1_pos[1])), ROBOT_RADIUS)
