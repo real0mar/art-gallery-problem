@@ -1,6 +1,6 @@
-import numpy as np
 import matplotlib.pyplot as plt
-from shapely.geometry import Polygon, Point, LineString
+import numpy as np
+from shapely.geometry import LineString, Point, Polygon
 from shapely.ops import unary_union
 
 # -------------------------------------------
@@ -11,15 +11,11 @@ boundary_poly = Polygon(boundary_coords)
 
 obstacles = [
     Polygon([(3, 3), (4, 3), (4, 4), (3, 4)]),
-    Polygon([(6, 6), (7, 6), (7, 7), (6, 7)])
+    Polygon([(6, 6), (7, 6), (7, 7), (6, 7)]),
 ]
 
 N = 3
-robot_positions = np.array([
-    [2.0, 2.0],
-    [8.0, 2.0],
-    [5.0, 8.0]
-])
+robot_positions = np.array([[2.0, 2.0], [8.0, 2.0], [5.0, 8.0]])
 
 max_iterations = 50
 tolerance = 0.01
@@ -37,20 +33,20 @@ def is_line_intersecting_polygons(line, polygons):
 
     start = np.array(line.coords[0])
     closest_point = None
-    min_dist = float('inf')
+    min_dist = float("inf")
     for inter in intersections:
-        if inter.geom_type == 'MultiPoint':
+        if inter.geom_type == "MultiPoint":
             for pt in inter:
                 dist = np.linalg.norm(np.array(pt.coords[0]) - start)
                 if dist < min_dist:
                     min_dist = dist
                     closest_point = pt
-        elif inter.geom_type == 'Point':
+        elif inter.geom_type == "Point":
             dist = np.linalg.norm(np.array(inter.coords[0]) - start)
             if dist < min_dist:
                 min_dist = dist
                 closest_point = inter
-        elif inter.geom_type == 'LineString':
+        elif inter.geom_type == "LineString":
             pts = list(inter.coords)
             for cpt in pts:
                 dist = np.linalg.norm(np.array(cpt) - start)
@@ -104,6 +100,7 @@ def assign_points_to_robots(sample_points, visibility_polygons, robot_positions)
 
 def polygons_from_assignments(assignments):
     from shapely.geometry import MultiPoint
+
     vd_polygons = {}
     for i, pts in assignments.items():
         if len(pts) < 3:
@@ -117,7 +114,9 @@ def polygons_from_assignments(assignments):
 for iteration in range(max_iterations):
     visibility_polygons = []
     for rpos in robot_positions:
-        vp = compute_visibility_polygon(rpos, boundary_poly, obstacles, num_rays=num_rays)
+        vp = compute_visibility_polygon(
+            rpos, boundary_poly, obstacles, num_rays=num_rays
+        )
         visibility_polygons.append(vp)
 
     xs = np.linspace(0, 10, 50)
@@ -128,7 +127,9 @@ for iteration in range(max_iterations):
     free_space = boundary_poly.difference(obstacle_union)
     free_points = [p for p in grid_points if Point(p).within(free_space)]
 
-    assignments = assign_points_to_robots(free_points, visibility_polygons, robot_positions)
+    assignments = assign_points_to_robots(
+        free_points, visibility_polygons, robot_positions
+    )
     vd_polygons = polygons_from_assignments(assignments)
 
     new_positions = []
@@ -153,34 +154,34 @@ for iteration in range(max_iterations):
 fig, ax = plt.subplots()
 # Plot boundary
 bx, by = boundary_poly.exterior.xy
-ax.plot(bx, by, 'k-')
+ax.plot(bx, by, "k-")
 
 # Plot obstacles
 for obs in obstacles:
     ox, oy = obs.exterior.xy
-    ax.fill(ox, oy, color='gray', alpha=0.5)
+    ax.fill(ox, oy, color="gray", alpha=0.5)
 
-colors = ['red', 'blue', 'green']
+colors = ["red", "blue", "green"]
 
 # Plot final robot positions
 for i, rpos in enumerate(robot_positions):
-    ax.plot(rpos[0], rpos[1], 'o', color=colors[i], label=f'Robot {i}')
+    ax.plot(rpos[0], rpos[1], "o", color=colors[i], label=f"Robot {i}")
 
 # Plot visibility polygons for each robot
 for i, vp in enumerate(visibility_polygons):
     if vp is not None and not vp.is_empty:
         vx, vy = vp.exterior.xy
         # Slightly different alpha or hatch to distinguish from VVD
-        ax.fill(vx, vy, color=colors[i], alpha=0.1, label=f'Robot {i} Visibility')
+        ax.fill(vx, vy, color=colors[i], alpha=0.1, label=f"Robot {i} Visibility")
 
 # Plot VVD polygons for each robot
 for i, vdpoly in vd_polygons.items():
     if vdpoly is not None and not vdpoly.is_empty:
         vx, vy = vdpoly.exterior.xy
         # Use a bit darker alpha than visibility
-        ax.fill(vx, vy, color=colors[i], alpha=0.3, label=f'Robot {i} VVD')
+        ax.fill(vx, vy, color=colors[i], alpha=0.3, label=f"Robot {i} VVD")
 
-ax.set_aspect('equal', 'box')
+ax.set_aspect("equal", "box")
 ax.legend()
 plt.title("Robots with Visibility and Visibility-based Voronoi Diagrams")
 plt.show()

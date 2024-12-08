@@ -1,5 +1,6 @@
-import pygame
 import math
+
+import pygame
 
 # ---------------------- CONFIGURATION ----------------------
 WINDOW_WIDTH = 800
@@ -26,8 +27,9 @@ obstacles = [
     # A triangle obstacle
     [(500, 100), (550, 200), (450, 200)],
     # Another polygon
-    [(600, 400), (650, 450), (600, 500), (550, 450)]
+    [(600, 400), (650, 450), (600, 500), (550, 450)],
 ]
+
 
 def polygon_to_edges(polygon):
     edges = []
@@ -36,6 +38,7 @@ def polygon_to_edges(polygon):
         p2 = polygon[(i + 1) % len(polygon)]
         edges.append((p1, p2))
     return edges
+
 
 # Combine all obstacle edges
 obstacle_edges = []
@@ -47,27 +50,26 @@ boundary = [
     ((0, 0), (WINDOW_WIDTH, 0)),
     ((WINDOW_WIDTH, 0), (WINDOW_WIDTH, WINDOW_HEIGHT)),
     ((WINDOW_WIDTH, WINDOW_HEIGHT), (0, WINDOW_HEIGHT)),
-    ((0, WINDOW_HEIGHT), (0, 0))
+    ((0, WINDOW_HEIGHT), (0, 0)),
 ]
 
 all_edges = obstacle_edges + boundary
 
+
 # ---------------------- RAY CASTING HELPER FUNCTIONS ----------------------
 def line_intersection(p0, p1, p2, p3):
-    """
-    Returns the intersection point of line segment p0p1 and p2p3 if exists, otherwise None.
-    """
+    """Returns the intersection point of line segment p0p1 and p2p3 if exists, otherwise None."""
     s1_x = p1[0] - p0[0]
     s1_y = p1[1] - p0[1]
     s2_x = p3[0] - p2[0]
     s2_y = p3[1] - p2[1]
 
-    denom = (-s2_x * s1_y + s1_x * s2_y)
+    denom = -s2_x * s1_y + s1_x * s2_y
     if denom == 0:
         return None  # Parallel or coincident lines
 
     s = (-s1_y * (p0[0] - p2[0]) + s1_x * (p0[1] - p2[1])) / denom
-    t = ( s2_x * (p0[1] - p2[1]) - s2_y * (p0[0] - p2[0])) / denom
+    t = (s2_x * (p0[1] - p2[1]) - s2_y * (p0[0] - p2[0])) / denom
 
     if 0 <= s <= 1 and 0 <= t <= 1:
         ix = p0[0] + (t * s1_x)
@@ -75,9 +77,9 @@ def line_intersection(p0, p1, p2, p3):
         return (ix, iy)
     return None
 
+
 def cast_ray(start, angle, edges):
-    """
-    Casts a ray from start at the given angle and returns the closest intersection point
+    """Casts a ray from start at the given angle and returns the closest intersection point
     with any edge, or None if no intersection.
     """
     end_x = start[0] + RAY_LENGTH * math.cos(angle)
@@ -85,7 +87,7 @@ def cast_ray(start, angle, edges):
     ray_end = (end_x, end_y)
 
     closest_point = None
-    closest_dist = float('inf')
+    closest_dist = float("inf")
 
     for edge in edges:
         intersect_pt = line_intersection(start, ray_end, edge[0], edge[1])
@@ -97,6 +99,7 @@ def cast_ray(start, angle, edges):
 
     return closest_point
 
+
 def cast_all_rays(robot_pos, edges, num_rays=360):
     hits = []
     for i in range(num_rays):
@@ -105,9 +108,9 @@ def cast_all_rays(robot_pos, edges, num_rays=360):
         hits.append(hit_point)
     return hits
 
+
 def remove_overlapping_points(robot1_pos, robot2_pos, hits1, hits2, threshold):
-    """
-    Given two sets of hit points (hits1 and hits2) from two robots,
+    """Given two sets of hit points (hits1 and hits2) from two robots,
     eliminate overlaps. If two hits at the same angle are within 'threshold' distance,
     only keep the one corresponding to the robot closer to that point.
     """
@@ -128,6 +131,7 @@ def remove_overlapping_points(robot1_pos, robot2_pos, hits1, hits2, threshold):
                     # Robot 2 is closer, Robot 1 loses this point
                     hits1[i] = None
     return hits1, hits2
+
 
 # ---------------------- MAIN SIMULATION LOOP ----------------------
 def main():
@@ -174,7 +178,9 @@ def main():
         hits2 = cast_all_rays((robot2_pos[0], robot2_pos[1]), all_edges, NUM_RAYS)
 
         # Resolve overlaps
-        hits1, hits2 = remove_overlapping_points(robot1_pos, robot2_pos, hits1, hits2, OVERLAP_THRESHOLD)
+        hits1, hits2 = remove_overlapping_points(
+            robot1_pos, robot2_pos, hits1, hits2, OVERLAP_THRESHOLD
+        )
 
         # Draw background
         screen.fill(BLACK)
@@ -199,13 +205,18 @@ def main():
                 pygame.draw.circle(screen, RED, (int(hp[0]), int(hp[1])), 2)
 
         # Draw robots
-        pygame.draw.circle(screen, WHITE, (int(robot1_pos[0]), int(robot1_pos[1])), ROBOT_RADIUS)
-        pygame.draw.circle(screen, WHITE, (int(robot2_pos[0]), int(robot2_pos[1])), ROBOT_RADIUS)
+        pygame.draw.circle(
+            screen, WHITE, (int(robot1_pos[0]), int(robot1_pos[1])), ROBOT_RADIUS
+        )
+        pygame.draw.circle(
+            screen, WHITE, (int(robot2_pos[0]), int(robot2_pos[1])), ROBOT_RADIUS
+        )
 
         # Update display
         pygame.display.flip()
 
     pygame.quit()
+
 
 if __name__ == "__main__":
     main()

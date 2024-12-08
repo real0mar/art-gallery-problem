@@ -1,6 +1,7 @@
+import math
+
 import pygame
 from shapely.geometry import Polygon
-import math
 
 # ---------------------- CONFIGURATION ----------------------
 WINDOW_WIDTH = 800
@@ -27,8 +28,9 @@ obstacles = [
     # A triangle obstacle
     [(500, 100), (550, 200), (450, 200)],
     # Another polygon
-    [(600, 400), (650, 450), (600, 500), (550, 450)]
+    [(600, 400), (650, 450), (600, 500), (550, 450)],
 ]
+
 
 # Convert polygon edges into a list of all line segments for easy intersection checks
 def polygon_to_edges(polygon):
@@ -39,8 +41,10 @@ def polygon_to_edges(polygon):
         edges.append((p1, p2))
     return edges
 
+
 def shapely_to_pygame_coords(polygon):
     return [(int(x), int(y)) for x, y in polygon.exterior.coords]
+
 
 # Combine all obstacle edges
 obstacle_edges = []
@@ -52,7 +56,7 @@ boundary = [
     ((0, 0), (WINDOW_WIDTH, 0)),
     ((WINDOW_WIDTH, 0), (WINDOW_WIDTH, WINDOW_HEIGHT)),
     ((WINDOW_WIDTH, WINDOW_HEIGHT), (0, WINDOW_HEIGHT)),
-    ((0, WINDOW_HEIGHT), (0, 0))
+    ((0, WINDOW_HEIGHT), (0, 0)),
 ]
 
 all_edges = obstacle_edges + boundary
@@ -60,8 +64,7 @@ all_edges = obstacle_edges + boundary
 
 # ---------------------- RAY CASTING HELPER FUNCTIONS ----------------------
 def line_intersection(p0, p1, p2, p3):
-    """
-    Returns the intersection point of line segment p0p1 and p2p3 if exists, otherwise None.
+    """Returns the intersection point of line segment p0p1 and p2p3 if exists, otherwise None.
     Uses vector cross product approach.
     """
     s1_x = p1[0] - p0[0]
@@ -69,12 +72,12 @@ def line_intersection(p0, p1, p2, p3):
     s2_x = p3[0] - p2[0]
     s2_y = p3[1] - p2[1]
 
-    denom = (-s2_x * s1_y + s1_x * s2_y)
+    denom = -s2_x * s1_y + s1_x * s2_y
     if denom == 0:
         return None  # Parallel or coincident lines
 
     s = (-s1_y * (p0[0] - p2[0]) + s1_x * (p0[1] - p2[1])) / denom
-    t = ( s2_x * (p0[1] - p2[1]) - s2_y * (p0[0] - p2[0])) / denom
+    t = (s2_x * (p0[1] - p2[1]) - s2_y * (p0[0] - p2[0])) / denom
 
     if 0 <= s <= 1 and 0 <= t <= 1:
         # Intersection detected
@@ -83,9 +86,9 @@ def line_intersection(p0, p1, p2, p3):
         return (ix, iy)
     return None
 
+
 def cast_ray(start, angle, edges):
-    """
-    Casts a ray from start at the given angle and returns the closest intersection point
+    """Casts a ray from start at the given angle and returns the closest intersection point
     with any edge, or None if no intersection within RAY_LENGTH.
     """
     end_x = start[0] + RAY_LENGTH * math.cos(angle)
@@ -93,7 +96,7 @@ def cast_ray(start, angle, edges):
     ray_end = (end_x, end_y)
 
     closest_point = None
-    closest_dist = float('inf')
+    closest_dist = float("inf")
 
     for edge in edges:
         intersect_pt = line_intersection(start, ray_end, edge[0], edge[1])
@@ -152,22 +155,29 @@ def main():
             if hit_point is not None:
                 hits.append(hit_point)
 
-
         pygame.draw.polygon(screen, GREEN, hits)
         # for hp in hits:
-            # pygame.draw.line(screen, GREEN, robot_pos, hp, 1)
-            # pygame.draw.circle(screen, RED, (int(hp[0]), int(hp[1])), 2)
+        # pygame.draw.line(screen, GREEN, robot_pos, hp, 1)
+        # pygame.draw.circle(screen, RED, (int(hp[0]), int(hp[1])), 2)
 
         # Draw robot
         r1_polygon = Polygon(hits)
         pygame_polygon_points = shapely_to_pygame_coords(r1_polygon)
         pygame.draw.polygon(screen, RED, pygame_polygon_points)
-        pygame.draw.circle(screen, WHITE, (int(r1_polygon.centroid.x), int(r1_polygon.centroid.x)), ROBOT_RADIUS)
-        pygame.draw.circle(screen, WHITE, (int(robot_pos[0]), int(robot_pos[1])), ROBOT_RADIUS)
+        pygame.draw.circle(
+            screen,
+            WHITE,
+            (int(r1_polygon.centroid.x), int(r1_polygon.centroid.x)),
+            ROBOT_RADIUS,
+        )
+        pygame.draw.circle(
+            screen, WHITE, (int(robot_pos[0]), int(robot_pos[1])), ROBOT_RADIUS
+        )
 
         pygame.display.flip()
 
     pygame.quit()
+
 
 if __name__ == "__main__":
     main()

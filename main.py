@@ -1,13 +1,17 @@
-import numpy as np
-from shapely.geometry import Point, Polygon, LineString
 import matplotlib.pyplot as plt
+import numpy as np
+from shapely.geometry import Point, Polygon
 
 
 # Step 1: Define the S-shaped domain
 def create_s_shape():
     outer_boundary = Polygon([(0, 0), (15, 0), (15, 10), (0, 10), (0, 0)])
-    inner_obstacle_1 = Polygon([(4, 6), (6, 6), (6, 10), (4, 10), (4, 6)])  # Upper block
-    inner_obstacle_2 = Polygon([(9, 0), (11, 0), (11, 4), (9, 4), (9, 0)])  # Lower block
+    inner_obstacle_1 = Polygon(
+        [(4, 6), (6, 6), (6, 10), (4, 10), (4, 6)]
+    )  # Upper block
+    inner_obstacle_2 = Polygon(
+        [(9, 0), (11, 0), (11, 4), (9, 4), (9, 0)]
+    )  # Lower block
     domain = outer_boundary.difference(inner_obstacle_1).difference(inner_obstacle_2)
     return domain, [inner_obstacle_1, inner_obstacle_2]
 
@@ -23,9 +27,7 @@ def discretize_domain(domain, resolution=0.2):
 
 # Step 3: Compute visibility polygon for a sensor
 def compute_visibility_polygon(sensor, domain, obstacles):
-    """
-    Computes the visibility polygon for a sensor, considering obstacles.
-    """
+    """Computes the visibility polygon for a sensor, considering obstacles."""
     visibility_polygon = domain
     for obstacle in obstacles:
         visibility_polygon = visibility_polygon.difference(obstacle)
@@ -34,9 +36,7 @@ def compute_visibility_polygon(sensor, domain, obstacles):
 
 # Step 4: Assign points to sensors based on visibility and proximity
 def compute_vvd(sensors, domain, obstacles, points):
-    """
-    Computes the VVD by assigning points to the nearest visible sensor.
-    """
+    """Computes the VVD by assigning points to the nearest visible sensor."""
     vvd = {sensor: [] for sensor in sensors}
     for point in points:
         visible_sensors = []
