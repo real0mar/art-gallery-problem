@@ -111,28 +111,28 @@ def cast_all_rays(robot_pos, edges, num_rays=360):
     return hits
 
 
-def remove_overlapping_points(robot1_pos, robot2_pos, hits1, hits2, threshold):
-    """Given two sets of hit points (hits1 and hits2) from two robots,
-    eliminate overlaps. If two hits at the same angle are within 'threshold' distance,
-    only keep the one corresponding to the robot closer to that point.
-    """
-    # Both hits arrays are indexed by the same angle (0 to NUM_RAYS-1)
-    for i in range(len(hits1)):
-        pt1 = hits1[i]
-        pt2 = hits2[i]
-        if pt1 is not None and pt2 is not None:
-            # Check if they are close enough to be considered the same point
-            if math.dist(pt1, pt2) < threshold:
-                dist1 = math.dist(robot1_pos, pt1)
-                dist2 = math.dist(robot2_pos, pt2)
-                # Keep only the one closer to its robot
-                if dist1 < dist2:
-                    # Robot 1 is closer, Robot 2 loses this point
-                    hits2[i] = None
-                else:
-                    # Robot 2 is closer, Robot 1 loses this point
-                    hits1[i] = None
-    return hits1, hits2
+# def remove_overlapping_points(robot1_pos, robot2_pos, hits1, hits2, threshold):
+#     """Given two sets of hit points (hits1 and hits2) from two robots,
+#     eliminate overlaps. If two hits at the same angle are within 'threshold' distance,
+#     only keep the one corresponding to the robot closer to that point.
+#     """
+#     # Both hits arrays are indexed by the same angle (0 to NUM_RAYS-1)
+#     for i in range(len(hits1)):
+#         pt1 = hits1[i]
+#         pt2 = hits2[i]
+#         if pt1 is not None and pt2 is not None:
+#             # Check if they are close enough to be considered the same point
+#             if math.dist(pt1, pt2) < threshold:
+#                 dist1 = math.dist(robot1_pos, pt1)
+#                 dist2 = math.dist(robot2_pos, pt2)
+#                 # Keep only the one closer to its robot
+#                 if dist1 < dist2:
+#                     # Robot 1 is closer, Robot 2 loses this point
+#                     hits2[i] = None
+#                 else:
+#                     # Robot 2 is closer, Robot 1 loses this point
+#                     hits1[i] = None
+#     return hits1, hits2
 
 
 def polygon_to_shapely(polygon):
@@ -153,40 +153,40 @@ def shapely_to_polygon(shapely_poly):
     return []
 
 
-def divide_intersection(intersection, robot1_pos, robot2_pos):
-    """Divide the intersection polygon based on proximity to two robots.
-    Handles cases where the intersection is not a Polygon.
-    """
-    # Check if intersection is a valid Polygon
-    if not isinstance(intersection, Polygon) or intersection.is_empty:
-        return Polygon(), Polygon()
-
-    robot1_vertices = []
-    robot2_vertices = []
-
-    # Divide the intersection based on proximity to robots
-    for point in intersection.exterior.coords:
-        p = Point(point)
-        if p.distance(Point(robot1_pos)) < p.distance(Point(robot2_pos)):
-            robot1_vertices.append(point)
-        else:
-            robot2_vertices.append(point)
-
-    # Ensure polygons are valid (require at least 4 coordinates)
-    if len(robot1_vertices) < 3:
-        robot1_vertices = []
-    else:
-        robot1_vertices.append(robot1_vertices[0])  # Close the polygon
-
-    if len(robot2_vertices) < 3:
-        robot2_vertices = []
-    else:
-        robot2_vertices.append(robot2_vertices[0])  # Close the polygon
-
-    divided_polygon1 = Polygon(robot1_vertices) if robot1_vertices else Polygon()
-    divided_polygon2 = Polygon(robot2_vertices) if robot2_vertices else Polygon()
-
-    return divided_polygon1, divided_polygon2
+# def divide_intersection(intersection, robot1_pos, robot2_pos):
+#     """Divide the intersection polygon based on proximity to two robots.
+#     Handles cases where the intersection is not a Polygon.
+#     """
+#     # Check if intersection is a valid Polygon
+#     if not isinstance(intersection, Polygon) or intersection.is_empty:
+#         return Polygon(), Polygon()
+#
+#     robot1_vertices = []
+#     robot2_vertices = []
+#
+#     # Divide the intersection based on proximity to robots
+#     for point in intersection.exterior.coords:
+#         p = Point(point)
+#         if p.distance(Point(robot1_pos)) < p.distance(Point(robot2_pos)):
+#             robot1_vertices.append(point)
+#         else:
+#             robot2_vertices.append(point)
+#
+#     # Ensure polygons are valid (require at least 4 coordinates)
+#     if len(robot1_vertices) < 3:
+#         robot1_vertices = []
+#     else:
+#         robot1_vertices.append(robot1_vertices[0])  # Close the polygon
+#
+#     if len(robot2_vertices) < 3:
+#         robot2_vertices = []
+#     else:
+#         robot2_vertices.append(robot2_vertices[0])  # Close the polygon
+#
+#     divided_polygon1 = Polygon(robot1_vertices) if robot1_vertices else Polygon()
+#     divided_polygon2 = Polygon(robot2_vertices) if robot2_vertices else Polygon()
+#
+#     return divided_polygon1, divided_polygon2
 
 
 def draw_polygon(screen, polygon, color):
@@ -375,24 +375,24 @@ def main():
         if not intersection.is_empty:
             # Split intersection into two polygons
             divided1, divided2 = split_by_voronoi(intersection, robot1_pos, robot2_pos)
-            divided1 = validate_geometry(divided1)
-            divided2 = validate_geometry(divided2)
-
-            # Update visibility for Robot 1
-            temp1 = visibility_robot1.difference(intersection)
-            temp1 = validate_geometry(temp1)
-            if not divided1.is_empty:
-                temp1 = temp1.union(divided1)
-                temp1 = validate_geometry(temp1)
-            visibility_robot1 = temp1
-
-            # Update visibility for Robot 2
-            temp2 = visibility_robot2.difference(intersection)
-            temp2 = validate_geometry(temp2)
-            if not divided2.is_empty:
-                temp2 = temp2.union(divided2)
-                temp2 = validate_geometry(temp2)
-            visibility_robot2 = temp2
+            # divided1 = validate_geometry(divided1)
+            # divided2 = validate_geometry(divided2)
+            #
+            # # Update visibility for Robot 1
+            # temp1 = visibility_robot1.difference(intersection)
+            # temp1 = validate_geometry(temp1)
+            # if not divided1.is_empty:
+            #     temp1 = temp1.union(divided1)
+            #     temp1 = validate_geometry(temp1)
+            # visibility_robot1 = temp1
+            #
+            # # Update visibility for Robot 2
+            # temp2 = visibility_robot2.difference(intersection)
+            # temp2 = validate_geometry(temp2)
+            # if not divided2.is_empty:
+            #     temp2 = temp2.union(divided2)
+            #     temp2 = validate_geometry(temp2)
+            # visibility_robot2 = temp2
 
         # Draw everything
         screen.fill(BLACK)
@@ -407,6 +407,8 @@ def main():
         # Draw visibility polygons (only if they have enough points)
         draw_polygon(screen, visibility_robot1, GREEN)
         draw_polygon(screen, visibility_robot2, BLUE)
+        draw_polygon(screen, divided1, GREEN)
+        draw_polygon(screen, divided2, BLUE)
 
         # Optionally draw intersection or any debugging info if needed
         # draw_polygon(screen, intersection, RED)
